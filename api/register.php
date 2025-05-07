@@ -32,7 +32,7 @@ if (!$forename || !$surname || !$email || !$mobile || !$dob || !$password) {
 $host = "localhost";
 $db = "codelis_db";
 $user = "agent";
-$pass = "Moron8023$";
+$pass = "";
 
 $conn = new mysqli($host, $user, $pass, $db);
 
