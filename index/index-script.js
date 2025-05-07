@@ -101,7 +101,7 @@ document.addEventListener("DOMContentLoaded", function () {
       };
 
       // Send data to server using fetch API
-      fetch("/api/register", {
+      fetch("../api/register.php", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
