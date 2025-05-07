@@ -1,80 +1,132 @@
-// server.js (Node.js with Express)
-const express = require("express");
-const bodyParser = require("body-parser");
-const bcrypt = require("bcrypt");
-const { Pool } = require("pg"); // Using PostgreSQL for this example
+// script.js
+document.addEventListener("DOMContentLoaded", function () {
+  const form = document.getElementById("registrationForm");
+  const passwordInput = document.getElementById("password");
+  const strengthMeter = document.getElementById("strength-meter");
 
-const app = express();
-app.use(express.static("public")); // Serve static files from 'public' directory
-app.use(bodyParser.json());
+  // Password strength checker
+  passwordInput.addEventListener("input", function () {
+    const password = this.value;
+    let strength = 0;
 
-// Database connection
-const pool = new Pool({
-  user: "Jack",
-  host: "localhost",
-  database: "users",
-  password: "Moron8023$",
-  port: 3306,
-});
+    if (password.length >= 8) strength++;
+    if (/[A-Z]/.test(password)) strength++;
+    if (/[a-z]/.test(password)) strength++;
+    if (/[0-9]/.test(password)) strength++;
+    if (/[^A-Za-z0-9]/.test(password)) strength++;
 
-// Registration endpoint
-app.post("/api/register", async (req, res) => {
-  try {
-    const { forename, surname, email, mobile, dob, password } = req.body;
+    strengthMeter.className = "strength-meter";
+    if (strength < 3) {
+      strengthMeter.classList.add("weak");
+    } else if (strength < 5) {
+      strengthMeter.classList.add("medium");
+    } else {
+      strengthMeter.classList.add("strong");
+    }
+  });
 
-    // Input validation
-    if (!forename || !surname || !email || !mobile || !dob || !password) {
-      return res.status(400).json({ error: "All fields are required" });
+  // Form validation
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+
+    // Reset errors
+    document
+      .querySelectorAll(".error")
+      .forEach((el) => (el.style.display = "none"));
+
+    let isValid = true;
+
+    // Validate forename
+    const forename = document.getElementById("forename").value.trim();
+    if (!forename) {
+      document.getElementById("forename-error").style.display = "block";
+      isValid = false;
     }
 
-    // Check if user already exists
-    const userCheck = await pool.query("SELECT * FROM users WHERE email = $1", [
-      email,
-    ]);
-    if (userCheck.rows.length > 0) {
-      return res
-        .status(409)
-        .json({ error: "User with this email already exists" });
+    // Validate surname
+    const surname = document.getElementById("surname").value.trim();
+    if (!surname) {
+      document.getElementById("surname-error").style.display = "block";
+      isValid = false;
     }
 
-    // Hash password (server-side)
-    // The saltRounds determines the complexity of the hash
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    // Validate email
+    const email = document.getElementById("email").value.trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email)) {
+      document.getElementById("email-error").style.display = "block";
+      isValid = false;
+    }
 
-    // Store user in database
-    const result = await pool.query(
-      "INSERT INTO users (forename, surname, email, mobile, dob, password) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
-      [forename, surname, email, mobile, dob, hashedPassword]
-    );
+    // Validate mobile
+    const mobile = document.getElementById("mobile").value.trim();
+    const mobileRegex = /^\+?[0-9]{10,15}$/;
+    if (!mobile || !mobileRegex.test(mobile)) {
+      document.getElementById("mobile-error").style.display = "block";
+      isValid = false;
+    }
 
-    res.status(201).json({
-      message: "Registration successful",
-      userId: result.rows[0].id,
-    });
-  } catch (error) {
-    console.error("Registration error:", error);
-    res.status(500).json({ error: "Server error during registration" });
-  }
+    // Validate DOB
+    const dob = document.getElementById("dob").value;
+    if (!dob) {
+      document.getElementById("dob-error").style.display = "block";
+      isValid = false;
+    }
+
+    // Validate password
+    const password = passwordInput.value;
+    const passwordRegex =
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    if (!password || !passwordRegex.test(password)) {
+      document.getElementById("password-error").style.display = "block";
+      isValid = false;
+    }
+
+    // Validate confirm password
+    const confirmPassword = document.getElementById("confirm-password").value;
+    if (password !== confirmPassword) {
+      document.getElementById("confirm-password-error").style.display = "block";
+      isValid = false;
+    }
+
+    if (isValid) {
+      // Prepare data to send to the server
+      const userData = {
+        forename: forename,
+        surname: surname,
+        email: email,
+        mobile: mobile,
+        dob: dob,
+        password: password, // Send plain password - server will hash it
+      };
+
+      // Send data to server using fetch API
+      fetch("/api/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(userData),
+      })
+        .then((response) => {
+          if (!response.ok) {
+            return response.json().then((data) => {
+              throw new Error(data.error || "Registration failed");
+            });
+          }
+          return response.json();
+        })
+        .then((data) => {
+          console.log("Success:", data);
+          // Show success message
+          document.getElementById("success-message").style.display = "block";
+          form.reset();
+          strengthMeter.className = "strength-meter";
+        })
+        .catch((error) => {
+          console.error("Error:", error);
+          alert("Registration failed: " + error.message);
+        });
+    }
+  });
 });
-
-// Start server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
-
-/*
-Database schema (PostgreSQL):
-
-CREATE TABLE users (
-  id SERIAL PRIMARY KEY,
-  forename VARCHAR(50) NOT NULL,
-  surname VARCHAR(50) NOT NULL,
-  email VARCHAR(100) UNIQUE NOT NULL,
-  mobile VARCHAR(20) NOT NULL,
-  dob DATE NOT NULL,
-  password VARCHAR(60) NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-*/

@@ -1,4 +1,4 @@
-// script.js
+// index-script.js
 document.addEventListener("DOMContentLoaded", function () {
   const form = document.getElementById("registrationForm");
   const passwordInput = document.getElementById("password");
@@ -90,46 +90,43 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     if (isValid) {
-      // Here we would normally send the data to the server
-      // For this example, we'll simulate the password hashing process
-      // In a real application, this should be done server-side!
-      hashPassword(password).then((hashedPassword) => {
-        const userData = {
-          forename: forename,
-          surname: surname,
-          email: email,
-          mobile: mobile,
-          dob: dob,
-          password: hashedPassword, // Send hashed password to server
-        };
+      // Prepare data to send to the server
+      const userData = {
+        forename: forename,
+        surname: surname,
+        email: email,
+        mobile: mobile,
+        dob: dob,
+        password: password, // Send plain password - server will hash it
+      };
 
-        // Simulate sending data to server
-        console.log("User data ready for database:", userData);
-
-        // Show success message
-        document.getElementById("success-message").style.display = "block";
-        form.reset();
-        strengthMeter.className = "strength-meter";
-      });
+      // Send data to server using fetch API
+      fetch("/api/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(userData),
+      })
+        .then((response) => {
+          if (!response.ok) {
+            return response.json().then((data) => {
+              throw new Error(data.error || "Registration failed");
+            });
+          }
+          return response.json();
+        })
+        .then((data) => {
+          console.log("Success:", data);
+          // Show success message
+          document.getElementById("success-message").style.display = "block";
+          form.reset();
+          strengthMeter.className = "strength-meter";
+        })
+        .catch((error) => {
+          console.error("Error:", error);
+          alert("Registration failed: " + error.message);
+        });
     }
   });
-
-  // Password hashing function (using Web Crypto API)
-  // In a real application, this should be done server-side!
-  async function hashPassword(password) {
-    // Convert password string to buffer
-    const encoder = new TextEncoder();
-    const data = encoder.encode(password);
-
-    // Hash the password using SHA-256
-    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-
-    // Convert buffer to hex string
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashedPassword = hashArray
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
-
-    return hashedPassword;
-  }
 });
